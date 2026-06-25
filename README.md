@@ -24,3 +24,23 @@ Former .NET Support Professional transitioning into Data Engineering.
 - Created GitHub repository
 - Added README
 - Added first Python script
+
+  ## Project 1: Retail Sales Analysis
+
+### Objective
+Analyze retail sales data using Python and pandas.
+
+### Dataset
+sales.csv
+
+### Skills Used
+- Python
+- Pandas
+- CSV Processing
+- Data Aggregation
+
+### Metrics Calculated
+- Total Sales
+- Average Sales
+- Sales by Product
+- Top Product
