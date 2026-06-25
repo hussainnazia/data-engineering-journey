@@ -1,7 +1,12 @@
-sales = [100, 200, 150, 300, 250]
+import pandas as pd
 
-total_sales = sum(sales)
-average_sales = total_sales / len(sales)
+df = pd.read_csv("sales.csv")
 
-print("Total Sales:", total_sales)
-print("Average Sales:", average_sales)
+print("Dataset:")
+print(df)
+
+print("\nTotal Sales:")
+print(df["amount"].sum())
+
+print("\nSales by Product:")
+print(df.groupby("product")["amount"].sum())
