@@ -18,3 +18,9 @@ Former .NET Support Professional transitioning into Data Engineering.
 - Pandas
 - PostgreSQL
 - GitHub
+
+## Progress Log
+
+- Created GitHub repository
+- Added README
+- Added first Python script
