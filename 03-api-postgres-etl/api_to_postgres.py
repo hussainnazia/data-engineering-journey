@@ -144,6 +144,47 @@ def get_last_successful_run():
         if conn:
             conn.close()
 
+
+def update_watermark():
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        run_time = datetime.now(timezone.utc)
+
+        cursor.execute("""
+            INSERT INTO etl_control (pipeline_name, last_successful_run)
+            VALUES (%s, %s)
+            ON CONFLICT (pipeline_name)
+            DO UPDATE SET
+                last_successful_run = EXCLUDED.last_successful_run
+        """, (
+            "api_users_pipeline",
+            run_time
+        ))
+
+        conn.commit()
+
+        logging.info("ETL watermark updated successfully.")
+        return True
+
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+
+        logging.error(f"Failed to update ETL watermark: {e}")
+        return False
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
 # --------------------
 # 1. EXTRACT
 # --------------------
@@ -206,7 +247,7 @@ def transform_data(users):
 def load_data(clean_users):
     conn = None
     cursor = None
-    run_time = datetime.now(timezone.utc)
+    
 
     inserted = 0
     updated = 0
@@ -287,16 +328,7 @@ def load_data(clean_users):
                 else:
                     skipped += 1
 
-        cursor.execute("""
-                        INSERT INTO etl_control (pipeline_name, last_successful_run)
-                        VALUES (%s, %s)
-                        ON CONFLICT (pipeline_name)
-                        DO UPDATE SET
-                            last_successful_run = EXCLUDED.last_successful_run
-                    """, (
-                        "api_users_pipeline",
-                        run_time
-                    ))
+      
 
         conn.commit()
 
@@ -408,22 +440,44 @@ def main():
 
         load_success, inserted, updated, skipped = load_data(clean_users)
 
+         
+
         if load_success:
 
             rejected_success = load_rejected_users(rejected_users)
 
             if rejected_success:
 
-                update_etl_run(
-                    run_id,
-                    "SUCCESS",
-                    records_extracted=len(users),
-                    records_inserted=inserted,
-                    records_updated=updated,
-                    records_skipped=skipped,
-                    records_rejected=len(rejected_users)
-                )
-                logging.info("ETL pipeline completed successfully!")
+                watermark_success = update_watermark()
+
+                if watermark_success:
+                    update_etl_run(
+                        run_id,
+                        "SUCCESS",
+                        records_extracted=len(users),
+                        records_inserted=inserted,
+                        records_updated=updated,
+                        records_skipped=skipped,
+                        records_rejected=len(rejected_users)
+                    )
+
+                    logging.info("ETL pipeline completed successfully!")
+
+                else:
+                    update_etl_run(
+                        run_id,
+                        "FAILED",
+                        records_extracted=len(users),
+                        records_inserted=inserted,
+                        records_updated=updated,
+                        records_skipped=skipped,
+                        records_rejected=len(rejected_users),
+                        error_message="Failed to update ETL watermark"
+                    )
+
+                    logging.error(
+                        "ETL pipeline failed while updating the watermark."
+                    )
 
             else:
                 update_etl_run(
@@ -438,23 +492,22 @@ def main():
                 )
 
                 logging.error(
-                "ETL pipeline failed while loading rejected records."
-            )
-        
-        else:
-            
-                update_etl_run(
-                    run_id,
-                    "FAILED",
-                    records_extracted=len(users),
-                    records_inserted=inserted,
-                    records_updated=updated,
-                    records_skipped=skipped,
-                    records_rejected=len(rejected_users),
-                    error_message="Failed during loading API users"
-                    )
+                    "ETL pipeline failed while loading rejected records."
+                )
 
-                logging.error("ETL pipeline failed during loading.")
+        else:
+            update_etl_run(
+                run_id,
+                "FAILED",
+                records_extracted=len(users),
+                records_inserted=inserted,
+                records_updated=updated,
+                records_skipped=skipped,
+                records_rejected=len(rejected_users),
+                error_message="Failed during loading API users"
+            )
+
+            logging.error("ETL pipeline failed during loading.")
 
 if __name__ =="__main__":
     main()
