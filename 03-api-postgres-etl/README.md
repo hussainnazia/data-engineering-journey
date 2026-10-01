@@ -58,7 +58,22 @@ Only records requiring changes are processed on subsequent runs.
 
 ### 5. Rejected Records
 
-Invalid records are separated from valid records and stored for further investigation instead of stopping the entire pipeline.
+Invalid records are separated from valid records and stored for further investigation instead of stopping the entire pipeline.\
+
+### Rejected Records Policy
+
+Rejected records do not stop the pipeline when the rejected-record load succeeds.
+
+Valid records are loaded into the main table, while invalid records are stored separately in `rejected_users` for investigation.
+
+The ETL run is marked as successful when:
+
+1. Valid records are loaded successfully.
+2. Rejected records are loaded successfully.
+3. The ETL watermark is updated successfully.
+
+This allows the pipeline to continue processing valid data while maintaining visibility into data-quality issues.
+
 
 ### 6. ETL Audit Logging
 
